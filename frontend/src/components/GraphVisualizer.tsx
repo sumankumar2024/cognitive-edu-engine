@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useSession } from "next-auth/react";
 
 // Dynamically import the graph to prevent Next.js hydration crashes
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { 
@@ -9,45 +10,56 @@ const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
   loading: () => <div className="text-cyan-400 text-sm animate-pulse flex items-center justify-center h-full">Waking up Neural Network...</div>
 });
 
-export default function GraphVisualizer() {
+export default function GraphVisualizer({ exam }: { exam?: string }) {
+  const { data: session } = useSession();
   const [isMounted, setIsMounted] = useState(false);
+  const [graphData, setGraphData] = useState({ nodes: [], links: [] });
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Simulated Graph Data (Will connect to Neo4j later)
-  const graphData = {
-    nodes: [
-      { id: "Physics", group: 1, val: 20 },
-      { id: "Optics", group: 2, val: 10, color: "#10B981" }, // Mastered (Green)
-      { id: "Calculus", group: 3, val: 15, color: "#EF4444" }, // Struggling (Red)
-      { id: "Electromagnetism", group: 2, val: 10, color: "#8B5CF6" } // Purple
-    ],
-    links: [
-      { source: "Physics", target: "Optics" },
-      { source: "Physics", target: "Electromagnetism" },
-      { source: "Calculus", target: "Physics" }
-    ]
-  };
+  useEffect(() => {
+    const fetchGraph = async () => {
+      // Don't fetch until we have the user's email
+      if (!session?.user?.email) return;
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/v1/graph', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: session.user.email })
+        });
+        
+        const data = await response.json();
+        if (data.nodes && data.nodes.length > 0) {
+           setGraphData(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch Live Map:", error);
+      }
+    };
+
+    if (isMounted) fetchGraph();
+  }, [session, isMounted]);
 
   if (!isMounted) return null;
 
   return (
     <div className="w-full h-64 bg-gray-900 rounded-xl overflow-hidden border border-gray-800 relative">
-      <ForceGraph2D
-        graphData={graphData}
-        nodeLabel="id"
-        nodeColor={node => node.color || "#06b6d4"} // Default Cyan
-        linkColor={() => "rgba(255,255,255,0.2)"}
-        backgroundColor="#111827"
-        nodeRelSize={6}
-        linkDirectionalParticles={2} // Glowing data particles flowing between nodes!
-        linkDirectionalParticleSpeed={0.01}
-      />
-      <div className="absolute top-3 left-4 text-xs font-semibold text-gray-400 uppercase tracking-widest">
-        Live Cognitive Map
-      </div>
+      {graphData.nodes.length > 0 ? (
+        <ForceGraph2D
+          graphData={graphData}
+          nodeLabel="label"
+          nodeColor={node => node.group === 1 ? "#3B82F6" : "#10B981"} // Blue for user, Green for concepts
+          linkColor={() => "rgba(255,255,255,0.2)"}
+          backgroundColor="#111827"
+        />
+      ) : (
+        <div className="text-slate-500 text-sm flex items-center justify-center h-full">
+          No map data yet. Upload an assignment or set a goal!
+        </div>
+      )}
     </div>
   );
 }
