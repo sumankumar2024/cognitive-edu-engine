@@ -1,0 +1,8 @@
+fastapi==0.104.1
+uvicorn==0.24.0.post1
+langchain==0.0.335
+langchain-google-genai==0.0.4  # Or langchain-openai depending on your key
+pinecone-client==2.2.4
+neo4j==5.14.1
+python-dotenv==1.0.0
+pydantic==2.5.2
