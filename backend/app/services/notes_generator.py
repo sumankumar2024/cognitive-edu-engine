@@ -1,31 +1,20 @@
-import google.generativeai as genai
 import os
+from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+# Initialize the ultra-fast Groq model
+llm = ChatGroq(
+    temperature=0.7, 
+    groq_api_key=os.getenv("GROQ_API_KEY"), 
+    model_name="llama-3.1-8b-instant"
+)
 
 def generate_study_notes(topic: str, exam: str, level: str = "Intermediate") -> str:
-    """Generates hyper-personalized study notes using dynamic model discovery."""
+    """Generates hyper-personalized study notes using Groq."""
     try:
-        # 🚀 THE ULTIMATE FAILSAFE: Dynamically fetch an allowed model
-        working_model = None
-        
-        # Ask Google exactly what models this API key is allowed to use
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                if 'flash' in m.name:
-                    working_model = m.name
-                    break  # Flash is the fastest, take it immediately
-                elif 'pro' in m.name and not working_model:
-                    working_model = m.name # Fallback to Pro
-        
-        # If the API returns nothing, force the modern standard
-        if not working_model:
-            working_model = "models/gemini-1.5-flash"
-            
-        print(f"🚀 AI Engine automatically locked onto: {working_model}")
-        model = genai.GenerativeModel(working_model)
+        print(f"🚀 AI Engine automatically locked onto Groq Llama 3 for {topic}")
         
         prompt = f"""
         Act as an elite, world-class tutor for a student preparing for the '{exam}' exam at an '{level}' level.
@@ -40,8 +29,8 @@ def generate_study_notes(topic: str, exam: str, level: str = "Intermediate") -> 
         Keep it under 300 words. Make it punchy and easy to read.
         """
         
-        response = model.generate_content(prompt)
-        return response.text
+        response = llm.invoke(prompt)
+        return response.content
     except Exception as e:
         print(f"Notes Generation Error: {e}")
         return f"⚠️ Failed to generate notes. Error: {str(e)}"

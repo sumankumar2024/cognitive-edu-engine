@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Initialize AI Components
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7)
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.7)
 embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
 def generate_personalized_quiz(student_id: str):

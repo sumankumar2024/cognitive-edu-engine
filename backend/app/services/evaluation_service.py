@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # We use temperature=0.2 for evaluation to make the AI more analytical and less creative
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.2)
 
 def evaluate_assignment(student_id: str, topic: str, submission: str):
     """

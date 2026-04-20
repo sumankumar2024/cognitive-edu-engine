@@ -7,7 +7,7 @@ load_dotenv()
 
 # Initialize the core LLM - using a fast model for chat routing
 llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash", # Swap to GPT-4o or Gemini Pro for complex evaluation
+    model="gemini-1.5-flash", # Swap to GPT-4o or Gemini Pro for complex evaluation
     temperature=0.3,
     google_api_key=os.getenv("GOOGLE_API_KEY")
 )

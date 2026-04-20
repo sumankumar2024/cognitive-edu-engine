@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.5)
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.5)
 
 def generate_study_plan(student_id: str):
     """

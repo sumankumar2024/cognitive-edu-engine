@@ -59,6 +59,18 @@ class NotesRequest(BaseModel):
     exam: str
     level: str = "Intermediate"
 
+# Inside backend/main.py
+
+class OnboardingPayload(BaseModel):
+    email: str
+    exam: str
+    level: str
+    critical_chapters: list[str] = [] # NEW: Captures the weaknesses from Step 3 of our UI
+
+class PathwayRequest(BaseModel):
+    weaknesses: list[str]
+    hours: float
+
 
 # --- API ENDPOINTS ---
 
@@ -67,6 +79,74 @@ def read_root():
     return {"message": "Cognitive Engine API is Live"}
 
 
+@app.post("/api/v1/generate-pathway")
+async def generate_pathway_api(request: PathwayRequest):
+    import json
+    from langchain_groq import ChatGroq
+    
+    allocator_llm = ChatGroq(
+        temperature=0.2, 
+        groq_api_key=os.getenv("GROQ_API_KEY"), 
+        model_name="llama-3.1-8b-instant" 
+    )
+    
+    total_minutes = int(request.hours * 60)
+    
+    # 🧠 PROMPT ENGINEERING: Force percentages based on complexity!
+    prompt = f"""
+    You are an elite AI Study Scheduler. 
+    A student needs to study the following weak chapters: {', '.join(request.weaknesses)}.
+    
+    Step 1: Analyze the relative academic complexity and volume of these specific chapters.
+    Step 2: Assign a precise study 'weightage_percentage' to each chapter based on its difficulty. The percentages MUST sum to exactly 100. Do NOT just split them equally (e.g., 50/50) unless they are exactly identical in scope.
+    Step 3: Determine the best study 'type' for each (e.g., CORE CONCEPT, ACTIVE RECALL, EXAM PRACTICE).
+    
+    Respond STRICTLY with a valid JSON array of objects. No markdown blocks.
+    Format:
+    [
+      {{"topic": "Chapter Name", "weightage_percentage": 65, "type": "CORE CONCEPT"}},
+      {{"topic": "Chapter Name", "weightage_percentage": 35, "type": "EXAM PRACTICE"}}
+    ]
+    """
+    
+    try:
+        response = allocator_llm.invoke(prompt)
+        raw_json = response.content.replace('```json', '').replace('```', '').strip()
+        pathway_data = json.loads(raw_json)
+        
+        # 🧮 DO THE MATH IN PYTHON
+        final_pathway = []
+        for item in pathway_data:
+            # Calculate exact minutes based on the LLM's percentage
+            allocated_minutes = int((item["weightage_percentage"] / 100) * total_minutes)
+            
+            final_pathway.append({
+                "topic": item["topic"],
+                "duration_minutes": allocated_minutes,
+                "type": item["type"],
+                "weightage_percentage": item["weightage_percentage"] # Send to frontend for UI flex!
+            })
+            
+        return {"status": "success", "pathway": final_pathway}
+        
+    except Exception as e:
+        print(f"Allocator Error: {e}")
+        # FAILSAFE
+        fallback = []
+        if not request.weaknesses:
+            return {"status": "success", "pathway": []}
+            
+        time_per_topic = total_minutes // len(request.weaknesses)
+        percent_per_topic = 100 // len(request.weaknesses)
+        
+        for w in request.weaknesses:
+            fallback.append({
+                "topic": w, 
+                "duration_minutes": time_per_topic, 
+                "type": "REVIEW",
+                "weightage_percentage": percent_per_topic
+            })
+        return {"status": "success", "pathway": fallback}
 
 
 @app.post("/api/v1/graph")
@@ -152,9 +232,15 @@ async def build_brain(payload: OnboardingPayload):
     except Exception as e:
         print(f"Graph Eraser Warning: {e}")
 
-    # 🧠 Triggers the LLM and Database injection for the NEW exam
-    result = generate_and_store_syllabus(payload.email, payload.exam, payload.level)
+    # 🧠 THE FIX: We are now passing payload.critical_chapters to the generator!
+    result = generate_and_store_syllabus(
+        payload.email, 
+        payload.exam, 
+        payload.level, 
+        payload.critical_chapters 
+    )
     return result
+
 
 # 💬 CHATBOT ENDPOINT
 @app.post("/api/v1/chat")
