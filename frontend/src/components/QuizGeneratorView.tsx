@@ -206,7 +206,7 @@ export default function QuizGeneratorView() {
 
             {/* Options */}
             <div className="space-y-4 mb-10">
-              {questions[currentQuestion].options.map((option, i) => (
+              {questions[currentQuestion].options.map((option: string, i: number) => (
                 <button
                   key={i}
                   onClick={() => setSelectedAnswer(i)}
