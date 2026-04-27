@@ -51,7 +51,7 @@ const handleFileUpload = async (e: any) => {
 };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] p-6 md:p-8 text-white overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col h-full bg-[#020617] p-6 md:p-8 text-white overflow-y-auto custom-scrollbar">
       
       <AnimatePresence mode="wait">
         

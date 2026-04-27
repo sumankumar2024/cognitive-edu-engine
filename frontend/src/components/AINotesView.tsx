@@ -84,7 +84,7 @@ export default function AINotesView() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] overflow-hidden p-8 relative">
+    <div className="flex flex-col h-full bg-[#020617] overflow-hidden p-8 relative">
       
       {/* Header */}
       <header className="mb-8 shrink-0">
@@ -101,7 +101,7 @@ export default function AINotesView() {
         
         {/* LEFT PANEL: Dynamic Topic Selection */}
         <div className="col-span-1 h-full min-h-0 flex flex-col">
-          <div className="bg-[#111] border border-gray-800 rounded-2xl p-6 shadow-xl h-full flex flex-col min-h-0">
+          <div className="bg-[#0F172A] border border-gray-800 rounded-2xl p-6 shadow-xl h-full flex flex-col min-h-0">
             
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2 shrink-0">
               <Target size={16} /> Critical Gaps
@@ -150,7 +150,7 @@ export default function AINotesView() {
         <div className="col-span-3 h-full min-h-0 flex flex-col">
           
           {status === "idle" && (
-            <div className="h-full border border-dashed border-gray-800 rounded-3xl flex flex-col items-center justify-center text-gray-600 bg-[#0A0A0A]/50">
+            <div className="h-full border border-dashed border-gray-800 rounded-3xl flex flex-col items-center justify-center text-gray-600 bg-[#0F172A]/50">
               <FileText size={48} className="mb-4 opacity-50" />
               <p className="text-lg font-medium text-gray-300">Ready to Synthesize</p>
               <p className="text-sm mt-2 max-w-sm text-center text-gray-500">
@@ -160,7 +160,7 @@ export default function AINotesView() {
           )}
 
           {status === "generating" && (
-            <div className="border border-gray-800 bg-[#111] rounded-3xl p-16 flex flex-col items-center justify-center text-center shadow-2xl h-full relative overflow-hidden">
+            <div className="border border-gray-800 bg-[#0F172A] rounded-3xl p-16 flex flex-col items-center justify-center text-center shadow-2xl h-full relative overflow-hidden">
                <BrainCircuit size={48} className="text-blue-500 animate-pulse mb-6" />
                <h3 className="text-2xl font-bold text-white mb-2">Compiling Cognitive Notes...</h3>
                <p className="text-gray-400 text-sm">Extracting high-yield concepts via Groq Llama 3.1...</p>
@@ -168,7 +168,7 @@ export default function AINotesView() {
           )}
 
           {status === "complete" && (
-            <div className="bg-[#111] border border-gray-800 rounded-3xl shadow-2xl relative overflow-hidden flex flex-col h-full min-h-0">
+            <div className="bg-[#0F172A] border border-gray-800 rounded-3xl shadow-2xl relative overflow-hidden flex flex-col h-full min-h-0">
               
               {/* FIXED Document Header */}
               <div className="p-8 border-b border-gray-800 bg-gradient-to-r from-[#1A1A1A] to-[#111] flex justify-between items-start shrink-0">

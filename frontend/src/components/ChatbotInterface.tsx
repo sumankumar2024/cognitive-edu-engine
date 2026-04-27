@@ -127,7 +127,7 @@ export default function ChatbotInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] relative">
+    <div className="flex flex-col h-full bg-[#020617] relative">
       {/* TOP HEADER */}
       <header className="flex justify-between items-center p-6 border-b border-gray-800/50 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -183,7 +183,7 @@ export default function ChatbotInterface() {
 
             {/* Bubble */}
             <div className={`p-4 rounded-2xl max-w-[80%] leading-relaxed ${
-              msg.role === "ai" ? "bg-[#111] border border-gray-800 text-gray-200" : 
+              msg.role === "ai" ? "bg-[#0F172A] border border-gray-800 text-gray-200" : 
               msg.role === "error" ? "bg-red-500/10 border border-red-500/30 text-red-200" : "bg-blue-600 text-white shadow-[0_0_15px_rgba(37,99,235,0.2)]"
             }`}>
               <ReactMarkdown>{msg.text}</ReactMarkdown>
@@ -197,7 +197,7 @@ export default function ChatbotInterface() {
              <div className="p-2 rounded-xl h-10 w-10 flex items-center justify-center shrink-0 bg-gradient-to-br from-blue-500 to-purple-600">
               <Bot size={20} className="text-white"/>
             </div>
-            <div className="p-4 rounded-2xl bg-[#111] border border-gray-800 flex items-center gap-2 text-gray-400">
+            <div className="p-4 rounded-2xl bg-[#0F172A] border border-gray-800 flex items-center gap-2 text-gray-400">
               <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
               <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
               <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>

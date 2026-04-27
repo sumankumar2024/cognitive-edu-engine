@@ -68,7 +68,7 @@ export default function OnboardingFlow({ onComplete }: { onComplete: (data: { ex
 
   if (isSeeding) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-[#0A0A0A] text-white">
+      <div className="flex flex-col items-center justify-center h-screen bg-[#0F172A] text-white">
         <BrainCircuit size={64} className="text-blue-500 animate-pulse mb-6" />
         <h2 className="text-3xl font-bold mb-2">Seeding Knowledge Graph...</h2>
         <p className="text-gray-400">Mapping {name}'s cognitive baseline to the neural network.</p>
@@ -85,8 +85,8 @@ export default function OnboardingFlow({ onComplete }: { onComplete: (data: { ex
   }
 
   return (
-    <div className="flex items-center justify-center h-screen bg-[#050505] text-white p-6">
-      <div className="max-w-2xl w-full bg-[#111] border border-gray-800 rounded-3xl p-10 shadow-2xl relative overflow-hidden">
+    <div className="flex items-center justify-center h-screen bg-[#020617] text-white p-6">
+      <div className="max-w-2xl w-full bg-[#0F172A] border border-gray-800 rounded-3xl p-10 shadow-2xl relative overflow-hidden">
         
         {/* Progress Bar */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gray-800">

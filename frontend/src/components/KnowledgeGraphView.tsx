@@ -101,7 +101,7 @@ export default function KnowledgeGraphView() {
   }, [user]);
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] p-8">
+    <div className="flex flex-col h-full bg-[#020617] p-8">
       {/* Header */}
       <header className="mb-6 shrink-0">
         <h2 className="text-3xl font-bold text-white flex items-center gap-3">
@@ -119,10 +119,10 @@ export default function KnowledgeGraphView() {
         {/* The Graph Canvas Container */}
         <div 
           ref={containerRef} 
-          className="flex-1 bg-[#111] border border-gray-800 rounded-3xl overflow-hidden relative shadow-2xl"
+          className="flex-1 bg-[#0F172A] border border-gray-800 rounded-3xl overflow-hidden relative shadow-2xl"
         >
           {isLoading ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111] z-10">
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0F172A] z-10">
               <Brain size={48} className="text-blue-500 animate-pulse mb-4" />
               <p className="text-gray-400 animate-pulse tracking-widest font-medium">MAPPING SYNAPSES...</p>
             </div>
@@ -155,7 +155,7 @@ export default function KnowledgeGraphView() {
         </div>
 
         {/* Sidebar Info Panel */}
-        <div className="w-80 shrink-0 bg-[#111] border border-gray-800 rounded-3xl p-6 flex flex-col">
+        <div className="w-80 shrink-0 bg-[#0F172A] border border-gray-800 rounded-3xl p-6 flex flex-col">
           <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6 flex items-center gap-2">
             <Zap size={16} /> Neural Metrics
           </h3>
