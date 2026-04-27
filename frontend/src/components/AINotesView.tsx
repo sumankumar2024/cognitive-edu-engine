@@ -186,22 +186,23 @@ export default function AINotesView() {
               </div>
 
               {/* SCROLLABLE Content */}
-              <div className="p-8 overflow-y-auto flex-1 text-gray-300">
+              <div className="p-8 overflow-y-auto flex-1 text-gray-300 custom-scrollbar">
                 {/* ID added here so the PDF generator grabs the rendered HTML */}
                 <div id="notes-text-content" className="prose prose-invert max-w-none prose-headings:text-blue-400 prose-a:text-blue-500">
                    <ReactMarkdown>{generatedNotes}</ReactMarkdown>
                 </div>
 
-                {/* --- NEURAL HANDWRITING INTEGRATION --- */}
+                {/* --- 🚀 NEURAL HANDWRITING INTEGRATION --- */}
                 <div className="mt-12 border-t border-gray-800 pt-8 print:hidden">
                   <div className="mb-6">
                     <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
                       <PenTool className="text-purple-400" size={20} />
-                      Personalize Your Notes
+                      Neural Handwriting Clone
                     </h3>
-                    <p className="text-gray-400 text-sm">Want these notes written in your own handwriting? Upload a sample below to engage our Neural Handwriting Engine.</p>
+                    <p className="text-gray-400 text-sm">Convert the AI-generated notes above into your specific handwritten script.</p>
                   </div>
-                  <HandwritingNotes />
+                  {/* PASSING THE REAL GENERATED NOTES HERE */}
+                  <HandwritingNotes aiNotes={generatedNotes} />
                 </div>
               </div>
 

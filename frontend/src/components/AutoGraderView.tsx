@@ -1,199 +1,218 @@
-"use client";
+'use client';
 import { useState, useRef } from "react";
-import { UploadCloud, FileText, CheckCircle2, AlertTriangle, XCircle, BrainCircuit, ScanSearch } from "lucide-react";
+import { 
+  UploadCloud, FileText, CheckCircle2, AlertTriangle, 
+  XCircle, BrainCircuit, Loader2, ShieldAlert, RefreshCw, Download 
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function AutoGraderView() {
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<"idle" | "scanning" | "complete">("idle");
+  const [status, setStatus] = useState<"idle" | "scanning" | "complete" | "invalid">("idle");
+  const [result, setResult] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Triggered when user drops a file or clicks to upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
-    e.preventDefault();
-    let selectedFile = null;
-    
-    if ('dataTransfer' in e) {
-      selectedFile = e.dataTransfer.files[0];
-    } else if ('target' in e && e.target.files) {
-      selectedFile = e.target.files[0];
-    }
+const handleFileUpload = async (e: any) => {
+    const selectedFile = e.target.files?.[0] || e.dataTransfer?.files?.[0];
+    if (!selectedFile) return;
 
-    if (selectedFile) {
-      setFile(selectedFile as any);
-      setStatus("scanning");
-      
-      // Simulate AI processing time (3.5 seconds of UI Magic)
-      setTimeout(() => {
+    setFile(selectedFile);
+    setStatus("scanning");
+    setErrorMessage("");
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+    formData.append("exam", localStorage.getItem("expoLearn_exam") || "Class 10 Board");
+    formData.append("level", localStorage.getItem("expoLearn_level") || "Intermediate");
+
+    try {
+      const res = await fetch("http://localhost:8000/api/grade-submission", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+
+      // 🚀 THE CRITICAL LOGIC FIX:
+      // If the backend says 'success' BUT the AI marks it as not an assignment...
+      if (data.status === "success" && data.data.is_assignment === true) {
+        setResult(data.data);
         setStatus("complete");
-      }, 3500);
+      } else {
+        // This triggers the red 'Action Denied' screen instead of the 0% Report
+        const reason = data.data?.feedback || data.message || "Invalid document structure.";
+        setErrorMessage(`Neural Check: ${reason}`);
+        setStatus("invalid");
+      }
+    } catch (err) {
+      setErrorMessage("Neural link severed. Ensure backend is active.");
+      setStatus("invalid");
     }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+};
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] overflow-y-auto scrollbar-hide p-8 relative">
-      {/* Header */}
-      <header className="mb-10">
-        <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-          <BrainCircuit className="text-purple-500" size={28} />
-          Cognitive Auto-Grader
-        </h2>
-        <p className="text-gray-400 mt-2 text-sm">
-          Drop assignments here. Powered by RAG and Neural Vision to evaluate, grade, and map weaknesses.
-        </p>
-      </header>
-
-      <div className="max-w-5xl w-full mx-auto">
+    <div className="flex flex-col h-full bg-[#050505] p-6 md:p-8 text-white overflow-y-auto custom-scrollbar">
+      
+      <AnimatePresence mode="wait">
         
-        {/* STATE 1: IDLE (The Dropzone) */}
+        {/* 1. IDLE STATE: DROPZONE */}
         {status === "idle" && (
-          <div 
-            onDrop={handleFileUpload}
-            onDragOver={handleDragOver}
-            className="border-2 border-dashed border-gray-700 hover:border-purple-500 bg-[#111] hover:bg-[#1a1a1a] transition-all duration-300 rounded-3xl p-16 flex flex-col items-center justify-center text-center cursor-pointer group shadow-2xl relative overflow-hidden"
-            onClick={() => fileInputRef.current?.click()}
+          <motion.div 
+            key="idle"
+            initial={{ opacity: 0, scale: 0.95 }} 
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="flex-1 flex flex-col items-center justify-center"
           >
-            {/* Background Glow */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
-            
-            <div className="w-24 h-24 rounded-full bg-gray-800 group-hover:bg-purple-500/20 flex items-center justify-center mb-6 transition-colors shadow-lg">
-              <UploadCloud size={48} className="text-gray-400 group-hover:text-purple-400 transition-colors" />
+            <div 
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); handleFileUpload(e); }}
+              className="w-full max-w-3xl border-2 border-dashed border-slate-800 rounded-[3rem] p-16 flex flex-col items-center gap-8 bg-slate-900/10 hover:bg-blue-600/5 hover:border-blue-500/50 transition-all group relative overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+              <div className="p-8 bg-blue-600/10 rounded-3xl border border-blue-500/20 group-hover:scale-110 transition-transform shadow-[0_0_30px_rgba(59,130,246,0.1)]">
+                <UploadCloud size={64} className="text-blue-500" />
+              </div>
+              <div className="text-center relative z-10">
+                <h3 className="text-3xl font-black uppercase tracking-tighter">Neural Evaluation Dropzone</h3>
+                <p className="text-slate-500 mt-3 text-lg font-medium">Upload solved Assignments or MCQs for real-time grading</p>
+              </div>
+              <button 
+                onClick={() => fileInputRef.current?.click()} 
+                className="px-12 py-5 bg-white text-black font-black rounded-2xl hover:bg-cyan-400 transition-all transform hover:scale-105 active:scale-95 shadow-2xl uppercase tracking-widest text-sm relative z-10"
+              >
+                Select Document
+              </button>
+              <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf" />
+              <p className="text-slate-600 text-xs font-bold uppercase tracking-widest">Supports PDF format</p>
             </div>
-            <h3 className="text-2xl font-bold text-white mb-2">Drag & Drop Assignment</h3>
-            <p className="text-gray-500 mb-8 max-w-md">
-              Upload PDF, DOCX, or handwritten JPGs. The Cognitive Engine will instantly evaluate the answers against the master rubric.
-            </p>
-            <button className="px-8 py-3 bg-white text-black rounded-full font-bold text-sm hover:scale-105 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-              Browse Files
-            </button>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              onChange={handleFileUpload} 
-              accept=".pdf,.png,.jpg,.jpeg"
-            />
-          </div>
+          </motion.div>
         )}
 
-        {/* STATE 2: SCANNING (The "Wow" Animation) */}
+        {/* 2. SCANNING STATE: ANIMATION */}
         {status === "scanning" && (
-          <div className="border border-gray-800 bg-[#111] rounded-3xl p-16 flex flex-col items-center justify-center text-center shadow-2xl relative overflow-hidden">
-             {/* Sweeping Scanner Line */}
-             <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-transparent via-purple-500/20 to-purple-500/40 animate-[scan_2s_ease-in-out_infinite] border-b border-purple-500 shadow-[0_0_30px_rgba(168,85,247,0.5)]"></div>
-             
-             <ScanSearch size={64} className="text-purple-500 animate-pulse mb-6 relative z-10" />
-             <h3 className="text-2xl font-bold text-white mb-2 relative z-10 animate-pulse">Running Neural Evaluation...</h3>
-             <div className="flex items-center gap-2 text-gray-400 text-sm mt-4 relative z-10">
-               <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
-               Extracting text via Vision API
-             </div>
-             <div className="flex items-center gap-2 text-gray-400 text-sm mt-2 relative z-10 opacity-70">
-               <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping" style={{ animationDelay: '0.5s' }}></div>
-               Cross-referencing RAG Vector Database
-             </div>
-          </div>
-        )}
-
-        {/* STATE 3: COMPLETE (The Results) */}
-        {status === "complete" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            {/* Document Preview Panel */}
-            <div className="col-span-1 bg-[#111] border border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-blue-500"></div>
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-800">
-                <FileText className="text-purple-400" size={24} />
-                <div className="overflow-hidden">
-                  <h3 className="font-bold text-white truncate">{file?.name || "Physics_Assignment_Final.pdf"}</h3>
-                  <p className="text-xs text-gray-500">Evaluated in 3.4s</p>
+          <motion.div 
+            key="scanning"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="flex-1 flex flex-col items-center justify-center gap-8"
+          >
+            <div className="relative w-64 h-80 bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-[0_0_50px_rgba(59,130,246,0.2)]">
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-500/30 to-transparent animate-scan"></div>
+              <div className="flex flex-col items-center justify-center h-full gap-6">
+                <FileText size={80} className="text-slate-700" />
+                <div className="flex flex-col items-center gap-2">
+                    <p className="text-blue-400 font-black tracking-[0.2em] animate-pulse uppercase">AI SCANNING</p>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Classifying Content...</span>
                 </div>
-              </div>
-              
-              {/* Mock Document Outline */}
-              <div className="space-y-4 opacity-80">
-                <div className="h-4 bg-gray-800 rounded w-3/4"></div>
-                <div className="h-4 bg-gray-800 rounded w-full"></div>
-                <div className="h-4 bg-gray-800 rounded w-5/6"></div>
-                <div className="p-3 border border-red-500/30 bg-red-500/5 rounded-lg mt-4 relative">
-                   <div className="absolute -right-2 -top-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">-2 pts</div>
-                   <div className="h-3 bg-red-500/20 rounded w-full mb-2"></div>
-                   <div className="h-3 bg-red-500/20 rounded w-2/3"></div>
-                </div>
-                <div className="h-4 bg-gray-800 rounded w-full"></div>
-                <div className="h-4 bg-gray-800 rounded w-4/5"></div>
               </div>
             </div>
+          </motion.div>
+        )}
 
-            {/* AI Feedback Panel */}
-            <div className="col-span-2 space-y-6">
+        {/* 3. INVALID STATE: REJECTION */}
+        {status === "invalid" && (
+          <motion.div 
+            key="invalid"
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            className="flex-1 flex flex-col items-center justify-center text-center px-4"
+          >
+            <div className="p-8 bg-red-500/10 rounded-full border-2 border-red-500/20 mb-8 shadow-[0_0_40px_rgba(239,68,68,0.2)] animate-in zoom-in duration-300">
+              <ShieldAlert size={80} className="text-red-500" />
+            </div>
+            <h3 className="text-4xl font-black text-white tracking-tighter uppercase mb-4">Action Denied</h3>
+            <p className="text-red-400 font-bold text-xl max-w-xl leading-relaxed">{errorMessage}</p>
+            <button 
+              onClick={() => setStatus("idle")} 
+              className="mt-10 px-10 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl font-black transition-all flex items-center gap-3 uppercase tracking-widest text-xs border border-white/5"
+            >
+              <RefreshCw size={18} /> Re-upload Correct File
+            </button>
+          </motion.div>
+        )}
+
+        {/* 4. COMPLETE STATE: RESULTS */}
+        {status === "complete" && result && (
+          <motion.div 
+            key="complete"
+            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
+            className="max-w-5xl mx-auto w-full py-8"
+          >
+            <div className="bg-slate-900 rounded-[3rem] border border-white/5 overflow-hidden shadow-2xl">
               
-              {/* Score Card */}
-              <div className="bg-gradient-to-br from-[#111] to-[#0A0A0A] border border-gray-800 rounded-2xl p-6 shadow-xl flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-300 mb-1">Total Score</h3>
-                  <p className="text-sm text-gray-500">Proficiency Level: <span className="text-blue-400 font-semibold">Intermediate</span></p>
+              {/* Header with Score */}
+              <div className="p-10 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex flex-col md:flex-row justify-between items-center gap-8">
+                <div className="flex items-center gap-6">
+                   <div className="p-4 bg-white/10 rounded-3xl backdrop-blur-md border border-white/10">
+                     <CheckCircle2 size={40} className="text-white" />
+                   </div>
+                   <div>
+                     <h2 className="text-4xl font-black text-white uppercase tracking-tighter">Evaluation Report</h2>
+                     <p className="text-blue-100 font-bold text-lg opacity-90 mt-1">Topic: {result.topic_detected}</p>
+                   </div>
                 </div>
-                <div className="relative w-24 h-24 flex items-center justify-center">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                    <path className="text-gray-800" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                    <path className="text-purple-500 animate-[dash_2s_ease-out_forwards]" strokeDasharray="85, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
-                  </svg>
-                  <span className="absolute text-2xl font-bold text-white">85<span className="text-sm text-gray-500">/100</span></span>
+                <div className="bg-white p-8 rounded-[2.5rem] text-center shadow-2xl min-w-[180px]">
+                  <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Neural Grade</span>
+                  <span className="text-7xl font-black text-slate-950">{result.score}%</span>
                 </div>
               </div>
 
-              {/* Feedback Breakdown */}
-              <div className="bg-[#111] border border-gray-800 rounded-2xl p-6 shadow-xl">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Cognitive Feedback</h3>
-                <ul className="space-y-4">
-                  <li className="flex gap-4 items-start">
-                    <CheckCircle2 className="text-green-500 shrink-0 mt-0.5" size={20} />
-                    <div>
-                      <h4 className="text-white font-medium">Strong Conceptual Grasp</h4>
-                      <p className="text-sm text-gray-400 mt-1">Excellent derivation of the Kinematic equations in Question 2. Your step-by-step logic aligns perfectly with standard theorems.</p>
+              {/* Detailed Breakdown */}
+              <div className="p-12 space-y-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="bg-white/5 p-8 rounded-[2rem] border border-white/10 relative group">
+                    <div className="absolute top-4 right-8 opacity-10 group-hover:opacity-20 transition-opacity">
+                        <FileText size={60} />
                     </div>
-                  </li>
-                  <li className="flex gap-4 items-start">
-                    <XCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
-                    <div>
-                      <h4 className="text-white font-medium">Unit Conversion Error</h4>
-                      <p className="text-sm text-gray-400 mt-1">In Question 4, you forgot to convert grams to kilograms before applying $F=ma$, resulting in an incorrect final magnitude by a factor of 1000.</p>
-                    </div>
-                  </li>
-                </ul>
-              </div>
+                    <h4 className="text-xs font-black text-blue-400 uppercase tracking-[0.3em] mb-6">AI Feedback</h4>
+                    <p className="text-slate-200 text-lg font-medium leading-relaxed italic">"{result.feedback}"</p>
+                  </div>
 
-              {/* Knowledge Graph Hook */}
-              <div className="bg-blue-600/10 border border-blue-500/30 rounded-2xl p-5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-600/20 rounded-lg"><BrainCircuit className="text-blue-400" size={20} /></div>
-                  <div>
-                    <h4 className="text-blue-100 font-bold text-sm">Knowledge Graph Updated</h4>
-                    <p className="text-xs text-blue-300/70 mt-0.5">"Unit Conversions" marked as Area for Improvement.</p>
+                  <div className="bg-orange-500/5 p-8 rounded-[2rem] border border-orange-500/20">
+                    <h4 className="text-xs font-black text-orange-400 uppercase tracking-[0.3em] mb-6">Gaps Identified</h4>
+                    <div className="flex items-center gap-4">
+                        <div className="w-4 h-4 bg-orange-500 rounded-full animate-pulse shadow-[0_0_10px_#f97316]"></div>
+                        <p className="text-white font-black text-2xl tracking-tight">{result.weakness_detected || result.topic_detected}</p>
+                    </div>
+                    <p className="text-slate-500 font-bold mt-4 text-sm uppercase tracking-wider">Added to Knowledge Graph</p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setStatus("idle")}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition-colors"
-                >
-                  GRADE ANOTHER
-                </button>
-              </div>
 
+                {/* Graph Sync Notification */}
+                <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-[2.5rem] p-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                  <div className="flex items-center gap-8">
+                    <div className="p-5 bg-indigo-500/20 rounded-3xl border border-indigo-500/30">
+                        <BrainCircuit className="text-indigo-400" size={48} />
+                    </div>
+                    <div>
+                      <h4 className="text-2xl font-black text-white tracking-tight">Synapse Calibration Complete</h4>
+                      <p className="text-indigo-300/70 font-medium text-lg mt-1 italic">Your neural learning map has been updated with these results.</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setStatus("idle")} 
+                    className="whitespace-nowrap px-10 py-5 bg-white text-slate-950 font-black rounded-2xl hover:bg-cyan-400 hover:scale-105 transition-all shadow-2xl uppercase tracking-widest text-xs"
+                  >
+                    Next Submission
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
-      </div>
-      
-      {/* Required for the scanning animation */}
+      </AnimatePresence>
+
+      {/* Global CSS for the scanning animation */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes scan {
           0% { transform: translateY(-100%); }
-          50% { transform: translateY(200%); }
-          100% { transform: translateY(-100%); }
+          100% { transform: translateY(100%); }
+        }
+        .animate-scan {
+          height: 100%;
+          width: 100%;
+          animation: scan 3s linear infinite;
+          background: linear-gradient(to bottom, transparent, rgba(59, 130, 246, 0.5), transparent);
         }
       `}} />
     </div>

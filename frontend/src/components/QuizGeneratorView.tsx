@@ -1,294 +1,229 @@
-"use client";
-import { useState } from "react";
-import { Lightbulb, Play, CheckCircle2, XCircle, Trophy, Brain, Target, ArrowRight, RefreshCw, Network } from "lucide-react";
+'use client';
 
-// Mock Database of AI-Generated questions per topic
-const quizDatabase: Record<string, any[]> = {
-  "Thermodynamics & Kinematics": [
-    {
-      question: "If a system absorbs 500J of heat and does 200J of work, what is the change in internal energy?",
-      options: ["300J", "700J", "-300J", "0J"],
-      correct: 0,
-      explanation: "ΔU = Q - W. So, 500J - 200J = 300J."
-    },
-    {
-      question: "Which of the following describes an adiabatic process?",
-      options: ["Constant Volume", "Constant Pressure", "No Heat Exchange", "Constant Temperature"],
-      correct: 2,
-      explanation: "In an adiabatic process, heat (Q) transferred is zero."
-    },
-    {
-      question: "A car accelerates from rest at 4 m/s² for 5 seconds. What is its final velocity?",
-      options: ["10 m/s", "20 m/s", "40 m/s", "9 m/s"],
-      correct: 1,
-      explanation: "v = u + at. v = 0 + (4)(5) = 20 m/s."
-    }
-  ],
-  "Calculus Integration": [
-    {
-      question: "What is the integral of 2x with respect to x?",
-      options: ["x² + C", "2 + C", "x + C", "2x² + C"],
-      correct: 0,
-      explanation: "Using the power rule: ∫ x^n dx = (x^(n+1))/(n+1) + C. So ∫ 2x dx = x² + C."
-    },
-    {
-      question: "Evaluate the definite integral of cos(x) from 0 to π/2.",
-      options: ["0", "1", "-1", "π"],
-      correct: 1,
-      explanation: "∫ cos(x) dx = sin(x). sin(π/2) - sin(0) = 1 - 0 = 1."
-    },
-    {
-      question: "Which integration technique is best for ∫ x*e^x dx?",
-      options: ["U-Substitution", "Partial Fractions", "Integration by Parts", "Trig Substitution"],
-      correct: 2,
-      explanation: "Integration by parts is used for products of algebraic and exponential functions (LIATE rule)."
-    }
-  ],
-  "Chemical Bonding": [
-    {
-      question: "Which type of bond involves the sharing of electron pairs between atoms?",
-      options: ["Ionic", "Covalent", "Metallic", "Hydrogen"],
-      correct: 1,
-      explanation: "Covalent bonds form when nonmetals share electrons to achieve a full valence shell."
-    },
-    {
-      question: "What is the molecular geometry of Methane (CH4)?",
-      options: ["Linear", "Bent", "Tetrahedral", "Trigonal Planar"],
-      correct: 2,
-      explanation: "CH4 has 4 bonding pairs and 0 lone pairs around the central Carbon, forming a tetrahedral shape."
-    },
-    {
-      question: "Which element has the highest electronegativity?",
-      options: ["Oxygen", "Chlorine", "Fluorine", "Nitrogen"],
-      correct: 2,
-      explanation: "Fluorine is the most electronegative element on the periodic table (value of 4.0)."
-    }
-  ]
-};
+import React, { useState, useEffect } from 'react';
+import { Brain, Loader2, CheckCircle2, XCircle, Trophy, Target, Zap } from 'lucide-react';
+
+interface Question {
+  question: string;
+  options: string[];
+  answer: string;
+}
 
 export default function QuizGeneratorView() {
-  const [quizState, setQuizState] = useState<"setup" | "generating" | "active" | "results">("setup");
-  const [targetTopic, setTargetTopic] = useState<string>("Thermodynamics & Kinematics");
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [score, setScore] = useState(0);
+  const [availableTopics, setAvailableTopics] = useState<string[]>([]);
+  const [userLevel, setUserLevel] = useState("Intermediate");
+  const [selectedTopic, setSelectedTopic] = useState("");
+  
+  const [quiz, setQuiz] = useState<Question[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: string }>({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  // Dynamically load questions based on selected topic
-  const questions = quizDatabase[targetTopic];
+  // 🚀 THE FIX: Syncing exactly with your Study Allocator's memory
+  useEffect(() => {
+    // 1. Pull the exact weaknesses saved during Onboarding
+    const savedWeaknesses = localStorage.getItem('expoLearn_weaknesses');
+    // 2. Pull the level saved during Onboarding (Fallback to Intermediate if not found)
+    const savedLevel = localStorage.getItem('expoLearn_level');
 
-  const handleGenerate = () => {
-    setQuizState("generating");
-    setTimeout(() => {
-      setQuizState("active");
-    }, 2500);
-  };
-
-  const handleAnswerSubmit = () => {
-    if (selectedAnswer === questions[currentQuestion].correct) {
-      setScore(score + 1);
-    }
-    
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-      setSelectedAnswer(null);
+    if (savedWeaknesses) {
+      setAvailableTopics(JSON.parse(savedWeaknesses));
     } else {
-      setQuizState("results");
+      // Emergency hackathon failsafe
+      setAvailableTopics(["Chemical Reactions", "Life Processes", "Electricity"]);
+    }
+
+    if (savedLevel) {
+      setUserLevel(savedLevel);
+    }
+  }, []);
+
+  const generateQuiz = async (topicToGenerate: string) => {
+    setLoading(true);
+    setError("");
+    setQuiz(null);
+    setIsSubmitted(false);
+    setSelectedAnswers({});
+    setSelectedTopic(topicToGenerate);
+
+    try {
+      const response = await fetch('http://localhost:8000/api/generate-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          topic: topicToGenerate,
+          level: userLevel 
+        }),
+      });
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        setQuiz(result.data);
+      } else {
+        setError(result.message || "Failed to generate quiz.");
+      }
+    } catch (err) {
+      setError("Server connection failed. Make sure FastAPI is running on port 8000.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const resetQuiz = () => {
-    setQuizState("setup");
-    setCurrentQuestion(0);
-    setSelectedAnswer(null);
-    setScore(0);
+  const handleSelect = (qIndex: number, option: string) => {
+    if (isSubmitted) return;
+    setSelectedAnswers({ ...selectedAnswers, [qIndex]: option });
+  };
+
+  const calculateScore = () => {
+    if (!quiz) return 0;
+    return quiz.filter((q, i) => selectedAnswers[i] === q.answer).length;
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#050505] overflow-y-auto scrollbar-hide p-8 relative">
-      {/* Header */}
-      <header className="mb-10">
-        <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-          <Lightbulb className="text-yellow-400" size={28} />
-          Adaptive Quiz Generator
-        </h2>
-        <p className="text-gray-400 mt-2 text-sm">
-          Dynamically synthesizing questions based on your Neural Knowledge Map gaps.
-        </p>
-      </header>
+    <div className="w-full h-full max-w-5xl mx-auto p-6 space-y-6">
+      
+      {/* Header Section */}
+      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+            <Brain className="w-8 h-8" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              Dynamic Assessment Engine
+            </h2>
+            <p className="text-slate-400 text-sm mt-1">
+              Generating <span className="text-indigo-400 font-bold">{userLevel}</span>-level questions for your weak areas
+            </p>
+          </div>
+        </div>
+      </div>
 
-      <div className="max-w-4xl w-full mx-auto">
-        
-        {/* STATE 1: SETUP */}
-        {quizState === "setup" && (
-          <div className="bg-[#111] border border-gray-800 rounded-3xl p-10 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-500/5 rounded-full blur-3xl pointer-events-none"></div>
-            
-            <div className="flex items-center gap-4 mb-8">
-              <div className="p-4 bg-gray-800/50 rounded-2xl"><Network className="text-yellow-400" size={32} /></div>
-              <div>
-                <h3 className="text-2xl font-bold text-white">Target Weak Nodes</h3>
-                <p className="text-gray-400">Select an identified weakness from your Knowledge Graph to patch.</p>
-              </div>
-            </div>
-
-            <div className="space-y-6 mb-10">
-              
-              {/* TOPIC SELECTOR (NEW!) */}
-              <div className="bg-[#1A1A1A] p-6 rounded-2xl border border-gray-800">
-                <span className="text-gray-400 font-medium text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Target size={16} className="text-red-400"/> Select Target Node
-                </span>
-                <div className="flex flex-wrap gap-3">
-                  {Object.keys(quizDatabase).map((topic) => (
-                    <button
-                      key={topic}
-                      onClick={() => setTargetTopic(topic)}
-                      className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all duration-300 ${
-                        targetTopic === topic 
-                          ? "bg-red-500/10 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.2)]" 
-                          : "bg-gray-800/30 border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300"
-                      }`}
-                    >
-                      {topic}
-                    </button>
-                  ))}
+      {/* Topic Allocator Grid (Matches your Study Allocator UI) */}
+      {!quiz && !loading && (
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
+          <div className="flex items-center gap-2 mb-6 border-b border-slate-800 pb-4">
+            <Target className="w-5 h-5 text-indigo-400" />
+            <h3 className="text-lg font-bold text-white">Select Focus Area to Evaluate</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {availableTopics.map((topic, index) => (
+              <button
+                key={index}
+                onClick={() => generateQuiz(topic)}
+                className="p-5 text-left bg-slate-800/50 border border-slate-700 rounded-xl hover:bg-indigo-900/30 hover:border-indigo-500/50 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[120px]"
+              >
+                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+                <span className="relative font-bold text-slate-200 group-hover:text-white text-lg">{topic}</span>
+                
+                <div className="mt-4 flex items-center justify-between w-full relative">
+                  <span className="text-xs font-medium text-slate-500 group-hover:text-indigo-300">AI Generation Mode</span>
+                  <div className="flex items-center gap-1 text-xs font-bold text-indigo-400 bg-indigo-400/10 px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity border border-indigo-400/20">
+                    <Zap className="w-3 h-3 fill-indigo-400" /> Generate
+                  </div>
                 </div>
-              </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-              {/* Difficulty Curve Info */}
-              <div className="bg-[#1A1A1A] p-5 rounded-2xl border border-gray-800 flex justify-between items-center">
-                <span className="text-gray-400 font-medium text-sm uppercase tracking-wider">Difficulty Curve</span>
-                <span className="text-blue-400 font-bold bg-blue-400/10 px-3 py-1 rounded-full text-sm">Adaptive (Level 2 → 4)</span>
-              </div>
+      {/* Loading State */}
+      {loading && (
+        <div className="w-full py-24 flex flex-col items-center justify-center bg-slate-900 border border-slate-800 rounded-2xl shadow-xl">
+          <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mb-4" />
+          <h3 className="text-xl font-bold text-white">Compiling Cognitive Assessment</h3>
+          <p className="text-slate-400 mt-2">Formulating targeted {userLevel} questions for {selectedTopic}...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 bg-red-900/20 text-red-400 rounded-xl border border-red-900/50 flex items-center gap-3">
+          <XCircle className="w-5 h-5 shrink-0" />
+          <span className="font-semibold">{error}</span>
+        </div>
+      )}
+
+      {/* The Active Quiz */}
+      {quiz && !loading && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between bg-indigo-900/20 p-5 rounded-2xl border border-indigo-500/30">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Active Module</span>
+              <span className="font-bold text-white text-lg">{selectedTopic}</span>
             </div>
-
             <button 
-              onClick={handleGenerate}
-              className="w-full py-4 bg-white text-black rounded-xl font-bold tracking-wide transition-all duration-300 hover:scale-[1.02] shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center justify-center gap-2"
+              onClick={() => setQuiz(null)}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-lg transition-colors border border-slate-700"
             >
-              <Play size={18} fill="currentColor" /> GENERATE NEURAL QUIZ
+              Change Topic
             </button>
           </div>
-        )}
 
-        {/* STATE 2: GENERATING */}
-        {quizState === "generating" && (
-          <div className="border border-gray-800 bg-[#111] rounded-3xl p-20 flex flex-col items-center justify-center text-center shadow-2xl h-[400px]">
-            <div className="relative w-24 h-24 mb-8">
-               <div className="absolute inset-0 rounded-full border-t-4 border-yellow-400 animate-spin"></div>
-               <div className="absolute inset-2 rounded-full border-r-4 border-blue-500 animate-spin border-opacity-50" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
-               <Brain size={32} className="absolute inset-0 m-auto text-gray-500 animate-pulse" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-3 animate-pulse">Synthesizing {targetTopic}...</h3>
-            <p className="text-gray-500 max-w-sm">Cross-referencing RAG database with your weak Knowledge Graph vectors.</p>
-          </div>
-        )}
+          <div className="space-y-6">
+            {quiz.map((q, qIndex) => (
+              <div key={qIndex} className="p-6 bg-slate-900 rounded-2xl shadow-xl border border-slate-800">
+                <h3 className="text-lg font-bold text-white mb-5 leading-relaxed">
+                  <span className="text-indigo-400 mr-2">{qIndex + 1}.</span> {q.question}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {q.options.map((opt, oIndex) => {
+                    const isSelected = selectedAnswers[qIndex] === opt;
+                    const isCorrect = q.answer === opt;
+                    
+                    let bgClass = "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300";
+                    
+                    if (isSubmitted) {
+                      if (isCorrect) bgClass = "bg-green-900/30 border-green-500/50 text-green-400 font-medium";
+                      else if (isSelected && !isCorrect) bgClass = "bg-red-900/30 border-red-500/50 text-red-400 font-medium";
+                    } else if (isSelected) {
+                      bgClass = "bg-indigo-900/50 border-indigo-500 text-white font-medium ring-1 ring-indigo-500/50";
+                    }
 
-        {/* STATE 3: ACTIVE QUIZ */}
-        {quizState === "active" && (
-          <div className="bg-[#111] border border-gray-800 rounded-3xl p-10 shadow-2xl">
-            {/* Progress Bar */}
-            <div className="flex justify-between items-center mb-6 text-sm font-bold text-gray-500">
-              <span className="text-blue-400 uppercase tracking-widest">{targetTopic}</span>
-              <span className="flex items-center gap-2"><Trophy size={16} className="text-yellow-500"/> {score * 10} XP Potential</span>
-            </div>
-            <div className="w-full h-2 bg-gray-800 rounded-full mb-10 overflow-hidden relative">
-              <div 
-                className="h-full bg-gradient-to-r from-yellow-400 to-yellow-600 transition-all duration-500"
-                style={{ width: `${((currentQuestion) / questions.length) * 100}%` }}
-              ></div>
-            </div>
-
-            {/* Question */}
-            <h3 className="text-2xl font-semibold text-white mb-8 leading-relaxed">
-              {questions[currentQuestion].question}
-            </h3>
-
-            {/* Options */}
-            <div className="space-y-4 mb-10">
-              {questions[currentQuestion].options.map((option: string, i: number) => (
-                <button
-                  key={i}
-                  onClick={() => setSelectedAnswer(i)}
-                  className={`w-full p-5 rounded-2xl border text-left font-medium transition-all duration-200 flex justify-between items-center ${
-                    selectedAnswer === i 
-                      ? "bg-yellow-400/10 border-yellow-400 text-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.15)]" 
-                      : "bg-[#1A1A1A] border-gray-800 text-gray-300 hover:border-gray-500 hover:bg-gray-800"
-                  }`}
-                >
-                  {option}
-                  {selectedAnswer === i && <CheckCircle2 size={20} />}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-gray-600 text-sm font-bold">Q {currentQuestion + 1} of {questions.length}</span>
-              <button 
-                onClick={handleAnswerSubmit}
-                disabled={selectedAnswer === null}
-                className={`px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all ${
-                  selectedAnswer !== null 
-                    ? "bg-white text-black hover:scale-105" 
-                    : "bg-gray-800 text-gray-500 cursor-not-allowed"
-                }`}
-              >
-                {currentQuestion === questions.length - 1 ? "FINISH QUIZ" : "NEXT QUESTION"} <ArrowRight size={18} />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* STATE 4: RESULTS */}
-        {quizState === "results" && (
-          <div className="bg-gradient-to-b from-[#1A1A1A] to-[#111] border border-gray-800 rounded-3xl p-12 shadow-2xl text-center relative overflow-hidden">
-            {/* Confetti Glow */}
-            <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-full h-64 bg-gradient-to-b ${score > 1 ? 'from-green-500/20' : 'from-red-500/20'} to-transparent blur-3xl pointer-events-none`}></div>
-
-            <div className="relative z-10 flex flex-col items-center">
-              <div className="w-32 h-32 rounded-full border-8 border-gray-800 flex items-center justify-center mb-6 relative">
-                <svg className="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                  <path 
-                    className={`${score > 1 ? 'text-green-500' : 'text-red-500'} animate-[dash_1.5s_ease-out_forwards]`}
-                    strokeDasharray={`${(score / questions.length) * 100}, 100`} 
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="currentColor" strokeWidth="3" 
-                  />
-                </svg>
-                <span className="text-4xl font-bold text-white">{Math.round((score / questions.length) * 100)}%</span>
-              </div>
-
-              <h2 className="text-3xl font-bold text-white mb-2">
-                {score === questions.length ? "Perfect Mastery!" : score > 1 ? "Great Progress!" : "Needs More Review"}
-              </h2>
-              <p className="text-gray-400 mb-8 max-w-md">
-                You scored {score} out of {questions.length} in <span className="text-white font-semibold">{targetTopic}</span>. The Cognitive Engine has updated your Knowledge Graph accordingly.
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 w-full max-w-md mb-8">
-                <div className="bg-gray-800/50 p-4 rounded-2xl border border-gray-700">
-                  <span className="block text-xs text-gray-500 uppercase font-bold mb-1">XP Earned</span>
-                  <span className="text-xl font-bold text-yellow-400">+{score * 50}</span>
-                </div>
-                <div className="bg-gray-800/50 p-4 rounded-2xl border border-gray-700">
-                  <span className="block text-xs text-gray-500 uppercase font-bold mb-1">Graph Synapses</span>
-                  <span className={`text-xl font-bold ${score > 1 ? 'text-green-400' : 'text-red-400'}`}>
-                    {score > 1 ? '+ Upgraded' : 'Unchanged'}
-                  </span>
+                    return (
+                      <div
+                        key={oIndex}
+                        onClick={() => handleSelect(qIndex, opt)}
+                        className={`p-4 border rounded-xl cursor-pointer transition-all ${bgClass} flex justify-between items-center`}
+                      >
+                        <span className="text-sm">{opt}</span>
+                        {isSubmitted && isCorrect && <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 ml-3" />}
+                        {isSubmitted && isSelected && !isCorrect && <XCircle className="w-5 h-5 text-red-500 shrink-0 ml-3" />}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-
-              <button 
-                onClick={resetQuiz}
-                className="px-8 py-3 bg-white text-black rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform"
-              >
-                <RefreshCw size={18} /> GENERATE NEW QUIZ
-              </button>
-            </div>
+            ))}
           </div>
-        )}
 
-      </div>
+          {!isSubmitted ? (
+            <button
+              onClick={() => setIsSubmitted(true)}
+              disabled={Object.keys(selectedAnswers).length < quiz.length}
+              className="w-full py-4 mt-6 bg-indigo-600 text-white font-bold text-lg rounded-xl hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-all shadow-lg"
+            >
+              Submit Cognitive Assessment
+            </button>
+          ) : (
+            <div className="mt-8 p-8 bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 rounded-2xl shadow-2xl text-white flex flex-col md:flex-row items-center justify-between gap-6">
+              <div>
+                <h3 className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-indigo-200">Assessment Complete</h3>
+                <p className="text-indigo-300 mt-2 font-medium text-sm">Knowledge graph updated based on synapse retention.</p>
+              </div>
+              <div className="flex flex-col items-center justify-center bg-slate-900/80 px-8 py-4 rounded-xl border border-slate-700 min-w-[150px]">
+                <div className="flex items-center gap-3 mb-1">
+                  <Trophy className="w-6 h-6 text-yellow-400" />
+                  <span className="text-4xl font-black">{calculateScore()}<span className="text-slate-500 text-2xl">/{quiz.length}</span></span>
+                </div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Score</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

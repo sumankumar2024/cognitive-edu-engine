@@ -1,244 +1,235 @@
-"use client";
-import { useState, useEffect } from "react";
-import {
-  Clock,
-  Brain,
-  Target,
-  Zap,
-  Play,
-  CheckCircle2,
-  AlertTriangle,
-} from "lucide-react";
+'use client';
 
-// Helper array to keep the UI looking beautiful even with dynamic AI data
-const uiAssets = [
-  { color: "from-red-500 to-orange-500", icon: <AlertTriangle size={18} /> },
-  { color: "from-yellow-400 to-yellow-600", icon: <Brain size={18} /> },
-  { color: "from-blue-500 to-cyan-500", icon: <Target size={18} /> },
-  { color: "from-purple-500 to-pink-500", icon: <Zap size={18} /> },
-];
+import { useState, useEffect } from "react";
+import { 
+  Clock, Brain, Target, Zap, Play, CheckCircle2, AlertTriangle, Loader2, BookOpen, ChevronRight
+} from "lucide-react";
 
 export default function StudyAllocatorView() {
   const [hours, setHours] = useState(3);
   const [isGenerating, setIsGenerating] = useState(false);
   const [schedule, setSchedule] = useState<any[] | null>(null);
   const [weaknesses, setWeaknesses] = useState<string[]>([]);
+  const [error, setError] = useState("");
 
-  // 🚀 DYNAMICALLY PULL WEAKNESSES ON LOAD
+  // Dynamically pull weaknesses on load
   useEffect(() => {
     const saved = localStorage.getItem("expoLearn_weaknesses");
     if (saved) {
       setWeaknesses(JSON.parse(saved));
     } else {
-      setWeaknesses(["Calculus", "Thermodynamics"]); // Fallback
+      // Emergency failsafe for hackathon demo
+      setWeaknesses(["Chemical Reactions", "Electricity", "Carbon Compounds"]);
     }
   }, []);
 
   const generatePathway = async () => {
+    if (weaknesses.length === 0) {
+      setError("No weak topics found. Please complete the cognitive diagnostic.");
+      return;
+    }
+
     setIsGenerating(true);
+    setError("");
     setSchedule(null);
 
     try {
-      // 🚀 LIVE API CALL TO GROQ BACKEND
-      const response = await fetch("http://localhost:8000/api/v1/generate-pathway", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weaknesses: weaknesses, hours: hours })
+      const response = await fetch('http://localhost:8000/api/v1/generate-pathway', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          weaknesses: weaknesses,
+          hours: hours 
+        }),
       });
-      
-      const data = await response.json();
-      
-      // Inject visual assets (colors/icons) into the raw AI data before setting state
-      if (data.pathway && Array.isArray(data.pathway)) {
-        const visuallyEnhancedPathway = data.pathway.map((item: any, index: number) => {
-          const asset = uiAssets[index % uiAssets.length]; // Cycle through assets
-          return {
-            ...item,
-            color: asset.color,
-            icon: asset.icon
-          };
-        });
-        setSchedule(visuallyEnhancedPathway);
+
+      const result = await response.json();
+      if (result.status === 'success') {
+        setSchedule(result.pathway);
+      } else {
+        setError(result.message || "AI failed to generate pathway.");
       }
-      
-      setIsGenerating(false);
-    } catch (error) {
-      console.error("Failed to generate pathway", error);
-      
-      // THE FAILSAFE: If the backend is offline during the pitch, gracefully fall back
-      const baseMinutes = (hours * 60) / (weaknesses.length || 1);
-      const basePercent = 100 / (weaknesses.length || 1);
-      
-      const fallbackSchedule = weaknesses.map((w, index) => {
-        const asset = uiAssets[index % uiAssets.length];
-        return {
-          topic: w,
-          type: index === 0 ? "CORE CONCEPT" : "ACTIVE RECALL",
-          duration_minutes: Math.floor(baseMinutes),
-          weightage_percentage: Math.floor(basePercent),
-          color: asset.color,
-          icon: asset.icon
-        };
-      });
-      
-      setSchedule(fallbackSchedule);
+    } catch (err) {
+      setError("Server connection failed. Is FastAPI running on port 8000?");
+    } finally {
       setIsGenerating(false);
     }
   };
 
+  const formatTime = (minutes: number) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+  };
+
   return (
-    <div className="flex flex-col h-full bg-[#050505] overflow-y-auto scrollbar-hide p-8">
-      {/* Header */}
-      <header className="mb-10">
-        <h2 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-          <Zap className="text-yellow-400" size={28} />
-          Dynamic Study Allocator
-        </h2>
-        <p className="text-gray-400 mt-2 text-sm">
-          AI-driven time allocation based on your Neural Knowledge Map weaknesses.
-        </p>
-      </header>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl">
-        {/* LEFT PANEL: The Engine Controls */}
-        <div className="col-span-1 space-y-6">
-          {/* Target Weaknesses Card */}
-          <div className="bg-[#111] border border-gray-800 rounded-2xl p-6 shadow-xl">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Target size={16} /> Targeted Weaknesses
-            </h3>
-            <div className="space-y-3 mt-4">
-              {weaknesses.map((weakness, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400"
-                >
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                  <span className="font-medium text-sm">{weakness}</span>
-                </div>
-              ))}
-            </div>
+    // Removed h-full so it doesn't restrict scrolling contexts
+    <div className="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+      
+      {/* Dashboard Header */}
+      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="p-3 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 text-cyan-400 rounded-xl border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+            <Clock className="w-8 h-8" />
           </div>
+          <div>
+            <h2 className="text-3xl font-black text-white tracking-tight">
+              Dynamic Study Allocator
+            </h2>
+            <p className="text-cyan-100/60 text-base mt-1 font-medium">
+              AI-driven time management based on cognitive gaps
+            </p>
+          </div>
+        </div>
+      </div>
 
-          {/* Time Input Card */}
-          <div className="bg-[#111] border border-gray-800 rounded-2xl p-6 shadow-xl">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Clock size={16} /> Available Time Today
-            </h3>
-            <div className="flex justify-between items-end mb-2">
-              <span className="text-4xl font-bold text-white">{hours}</span>
-              <span className="text-gray-400 mb-1 font-medium">Hours</span>
+      {/* THE FIX: Changed grid layout to 5/7 ratio to make left side bigger, and forced self-start */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
+        
+        {/* Left Column: Input Parameters (WIDER & FULLY STICKY) */}
+        <div className="lg:col-span-5 sticky top-6 self-start space-y-6 z-20">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl flex flex-col">
+            
+            {/* Target Weaknesses (ENLARGED TEXT & PADDING) */}
+            <div className="mb-8">
+              <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest mb-5 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-orange-400" /> Critical Focus Areas
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {weaknesses.map((w, i) => (
+                  <span key={i} className="px-4 py-2.5 bg-slate-800 border border-slate-600 text-white text-sm font-bold rounded-xl shadow-sm hover:border-cyan-500/50 transition-colors">
+                    {w}
+                  </span>
+                ))}
+              </div>
             </div>
-            <input
-              type="range"
-              min="1"
-              max="8"
-              step="0.5"
-              value={hours}
-              onChange={(e) => setHours(parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-blue-500 mt-4"
-            />
 
-            <button
+            {/* Time Slider */}
+            <div className="py-8 border-t border-b border-slate-800/60 mb-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest flex items-center gap-2">
+                  <Target className="w-5 h-5 text-cyan-400" /> Time Block
+                </h3>
+                <div className="bg-cyan-500/10 border border-cyan-500/20 px-4 py-1.5 rounded-lg shadow-inner">
+                  <span className="text-cyan-400 font-black text-lg">{hours} hrs</span>
+                </div>
+              </div>
+              <input 
+                type="range" 
+                min="1" 
+                max="8" 
+                step="0.5"
+                value={hours}
+                onChange={(e) => setHours(parseFloat(e.target.value))}
+                className="w-full accent-cyan-500 bg-slate-800 rounded-full appearance-none h-3 cursor-pointer hover:bg-slate-700 transition-all shadow-inner"
+              />
+              <div className="flex justify-between text-xs text-slate-500 mt-4 font-black uppercase tracking-wider">
+                <span>1 hr</span>
+                <span>4 hrs</span>
+                <span>8 hrs</span>
+              </div>
+            </div>
+
+            {/* The CTA Button */}
+            <button 
               onClick={generatePathway}
-              disabled={isGenerating}
-              className={`w-full mt-8 py-4 rounded-xl font-bold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 ${
-                isGenerating
-                  ? "bg-blue-600/50 text-blue-200 cursor-not-allowed"
-                  : "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:scale-[1.02]"
-              }`}
+              disabled={isGenerating || weaknesses.length === 0}
+              className="w-full py-5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-base uppercase tracking-wide rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-3 group"
             >
-              {isGenerating ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  ANALYZING SYNAPSES...
-                </>
-              ) : (
-                <>
-                  <Play size={18} /> GENERATE PATHWAY
-                </>
-              )}
+              {isGenerating ? <Loader2 className="w-6 h-6 animate-spin" /> : <Zap className="w-6 h-6 group-hover:scale-110 transition-transform" />}
+              {isGenerating ? "Compiling Matrix..." : "Generate Focus Pathway"}
             </button>
+
+            {error && <p className="text-red-400 text-sm font-bold mt-5 text-center bg-red-500/10 py-3 rounded-xl border border-red-500/20">{error}</p>}
           </div>
         </div>
 
-        {/* RIGHT PANEL: The Generated Timeline */}
-        <div className="col-span-2">
-          {schedule ? (
-            <div className="bg-[#111] border border-gray-800 rounded-2xl p-8 shadow-xl relative overflow-hidden">
-              {/* Background Glow */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
+        {/* Right Column: Output Schedule */}
+        <div className="lg:col-span-7 bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl min-h-[600px]">
+          
+          {!schedule && !isGenerating && (
+            <div className="h-full min-h-[500px] flex flex-col items-center justify-center text-slate-500 text-center space-y-6">
+              <div className="p-8 bg-slate-800/30 rounded-full border border-slate-800 shadow-inner">
+                <Brain className="w-20 h-20 text-slate-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-black text-slate-300 mb-2">Awaiting Parameters</p>
+                <p className="text-base text-slate-500 leading-relaxed max-w-md mx-auto">
+                  Adjust your time block on the left panel and let the AI generate a custom, mathematically-weighted learning schedule.
+                </p>
+              </div>
+            </div>
+          )}
 
-              <h3 className="text-xl font-bold text-white mb-6">
-                Optimized Cognitive Pathway
-              </h3>
+          {isGenerating && (
+            <div className="h-full min-h-[500px] flex flex-col items-center justify-center space-y-8">
+              <div className="relative">
+                <div className="absolute inset-0 bg-cyan-500 blur-2xl opacity-20 rounded-full animate-pulse"></div>
+                <Loader2 className="w-16 h-16 text-cyan-500 animate-spin relative z-10" />
+              </div>
+              <p className="text-slate-300 font-bold text-lg animate-pulse tracking-wide">AI analyzing volume & complexity...</p>
+            </div>
+          )}
 
-              <div className="relative border-l-2 border-gray-800 ml-4 space-y-8 pb-4">
-                {schedule.map((task, i) => (
-                  <div key={i} className="relative pl-8 group">
-                    {/* Timeline Dot */}
-                    <div
-                      className={`absolute -left-[9px] top-2 w-4 h-4 rounded-full bg-gradient-to-br ${task.color} shadow-[0_0_10px_currentColor] border-2 border-[#111]`}
-                    ></div>
+          {schedule && !isGenerating && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-6">
+                <h3 className="text-2xl font-black text-white flex items-center gap-3">
+                  <Play className="w-7 h-7 text-cyan-400 fill-cyan-400/20" /> Optimal Session Plan
+                </h3>
+                <span className="text-sm font-black uppercase tracking-widest bg-slate-800 text-cyan-400 px-5 py-2.5 rounded-xl border border-slate-700 shadow-sm">
+                  Total: {hours} Hours
+                </span>
+              </div>
 
-                    <div className="bg-[#1A1A1A] border border-gray-800 hover:border-gray-600 transition-colors rounded-xl p-5 shadow-lg">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`p-2 rounded-lg bg-gradient-to-br ${task.color} text-white`}
-                          >
-                            {task.icon}
-                          </div>
-                          <div>
-                            <h4 className="text-lg font-bold text-gray-200">
-                              {task.topic}
-                            </h4>
-                            <p className="text-xs text-gray-500 font-medium tracking-wide uppercase mt-1">
-                              {task.type}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* 🚀 THE NEW DYNAMIC TIME & PERCENTAGE BADGES */}
-                        <div className="flex items-center gap-3">
-                          <div className="px-3 py-1.5 rounded-lg bg-gray-800/50 border border-gray-700 text-xs font-bold text-purple-400 tracking-wider">
-                            {task.weightage_percentage}% LOAD
-                          </div>
-                          <div className="flex items-center gap-2 bg-blue-500/10 px-3 py-1.5 rounded-lg border border-blue-500/20">
-                            <Clock size={14} className="text-blue-400" />
-                            <span className="text-sm font-bold text-blue-400">
-                              {task.duration_minutes} min
-                            </span>
-                          </div>
-                        </div>
+              <div className="space-y-5 pt-2">
+                {schedule.map((task, idx) => (
+                  <div key={idx} className="bg-slate-800/40 hover:bg-slate-800/80 border border-slate-700/50 p-6 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-6 transition-all group">
+                    
+                    {/* Weightage Badge */}
+                    <div className="flex flex-col items-center justify-center bg-slate-900 border border-slate-700 rounded-2xl min-w-[100px] h-[100px] shrink-0 shadow-inner">
+                      <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-400 to-blue-500">
+                        {task.weightage_percentage}%
+                      </span>
+                      <span className="text-[10px] uppercase text-slate-500 font-black tracking-widest mt-1">Weight</span>
+                    </div>
 
+                    <div className="flex-1 w-full space-y-4">
+                      <div className="flex justify-between items-start">
+                        <h4 className="text-white font-bold text-xl leading-tight pr-4">{task.topic}</h4>
+                        <span className="text-sm font-black text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-4 py-1.5 rounded-xl shrink-0">
+                          {formatTime(task.duration_minutes)}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-5 h-5 text-slate-400" />
+                        <span className="text-sm font-bold text-slate-400 uppercase tracking-widest">{task.type}</span>
                       </div>
 
-                      {/* Progress Bar visual */}
-                      <div className="w-full bg-gray-800 rounded-full h-1.5 mt-4 overflow-hidden">
-                        <div
-                          className={`h-1.5 rounded-full bg-gradient-to-r ${task.color} w-0 group-hover:w-full transition-all duration-1000 ease-out`}
-                        ></div>
+                      {/* Dynamic AI Progress Bar */}
+                      <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700 shadow-inner">
+                        <div 
+                          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-1000 ease-out relative"
+                          style={{ width: `${task.weightage_percentage}%` }}
+                        >
+                          <div className="absolute top-0 right-0 bottom-0 left-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%,transparent_100%)] bg-[length:20px_20px] animate-shimmer"></div>
+                        </div>
                       </div>
                     </div>
+
                   </div>
                 ))}
               </div>
 
-              <div className="mt-6 flex justify-end">
-                <button className="flex items-center gap-2 text-sm font-bold text-green-400 bg-green-400/10 px-6 py-3 rounded-full hover:bg-green-400/20 transition-colors border border-green-400/20">
-                  <CheckCircle2 size={18} /> START SESSION
+              <div className="mt-8 pt-8 border-t border-slate-800 flex justify-end">
+                <button className="flex items-center gap-3 text-sm font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-8 py-4 rounded-xl hover:bg-emerald-500/20 hover:scale-[1.02] transition-all border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)] group">
+                  <CheckCircle2 className="w-6 h-6 group-hover:fill-emerald-400/20" /> Initiate Session <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
-            </div>
-          ) : (
-            <div className="h-full min-h-[400px] border border-dashed border-gray-800 rounded-2xl flex flex-col items-center justify-center text-gray-600 bg-[#0A0A0A]/50">
-              <Brain size={48} className="mb-4 opacity-50" />
-              <p className="text-lg font-medium">Awaiting Input Parameters</p>
-              <p className="text-sm mt-2 max-w-sm text-center">
-                Adjust your available time and generate a custom learning
-                pathway tailored to your cognitive weaknesses.
-              </p>
             </div>
           )}
         </div>
