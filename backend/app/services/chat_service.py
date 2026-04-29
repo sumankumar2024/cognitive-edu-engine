@@ -35,23 +35,36 @@ def get_textbook_context(query: str) -> str:
         return " ".join(contexts) if contexts else ""
     except Exception: return ""
 
-def process_student_message(student_id: str, message: str) -> str:
+def process_student_message(student_id: str, message: str, selected_weak_chapters: list = None) -> str:
     course_context = get_textbook_context(message)
-    student_weaknesses = get_student_context(student_id)
     
-    # 🧠 THE NEW PROMPT: Forcing beautiful structure
+    # Dynamically format the weaknesses instead of using the hardcoded function
+    if selected_weak_chapters:
+        student_weaknesses = "Struggles with: " + ", ".join(selected_weak_chapters)
+    else:
+        student_weaknesses = "No specific weaknesses identified."
+        
+    # 2. 🧠 THE FIXED PROMPT: Injecting the variables directly
     prompt = f"""
-    You are StudyPilot, an elite AI tutor. 
-    Student Message: "{message}"
+    You are StudyPilot, an elite AI tutor.
     
+    STUDENT MESSAGE: "{message}"
+    
+    STUDENT'S WEAKNESSES: {student_weaknesses if student_weaknesses else 'None identified.'}
+    
+    VERIFIED TEXTBOOK CONTEXT: 
+    {course_context if course_context else 'No specific textbook context found. Rely on general knowledge.'}
+        
     CRITICAL INSTRUCTIONS FOR FORMATTING:
     1. NEVER write a single block of text.
-    2. ALWAYS use Markdown. 
+    2. ALWAYS use Markdown.
     3. Break your answer into short paragraphs.
-    4. Use **bold text** for key terms.
+    4. Use bold text for key terms.
     5. Use bullet points or numbered lists for explanations.
+    6. If the student asks about a topic in their WEAKNESSES, be extra encouraging and break it down step-by-step.
     """
-    
+       
+    # 3. Call the model
     try:
         response = llm.invoke(prompt)
         return response.content

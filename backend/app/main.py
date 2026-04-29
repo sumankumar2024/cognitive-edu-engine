@@ -46,6 +46,7 @@ class ChatRequest(BaseModel):
     user_id: str
     message: str
     session_id: str
+    critical_chapters: list[str] = []
 
 class EvaluationRequest(BaseModel):
     user_id: str
@@ -250,7 +251,11 @@ async def build_brain(payload: OnboardingPayload):
 @app.post("/api/v1/chat")
 async def chat_endpoint(request: ChatRequest):
     try:
-        reply = process_student_message(request.user_id, request.message)
+        reply = process_student_message(
+        student_id=request.user_id, 
+        message=request.message, 
+        selected_weak_chapters=request.critical_chapters
+        )
         return {
             "reply": reply,
             "status": "success"
